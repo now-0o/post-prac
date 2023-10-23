@@ -1,12 +1,41 @@
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 const { Post } = require('../models')
+
+router.get('/detail', async (req, res) => {
+  const keyword = req.query.keyword;
+
+  const getPost = await Post.findAll({
+    attributes: ['id', 'title', 'content'],
+    where: {
+      [Op.or]: [
+        {
+          title: {
+            [Op.like]: "%" + keyword + "%"
+          },
+        },
+        {
+          content: {
+            [Op.like]: "%" + keyword + "%"
+          },
+        },
+      ],
+    },
+  });
+
+  if (getPost.length > 0) {
+    res.status(200).send(getPost);
+  } else {
+    res.status(404).send("해당 키워드의 검색 결과가 없습니다.");
+  }
+});
 
 router.get('/', async (req, res) => {
    const post = await Post.findAll({
     attributes: ['id', 'title', 'content']
    });
-  res.status(200).send(o);
+  res.status(200).send(post);
 })
 
 router.get('/:id', async (req, res) => {
@@ -19,12 +48,13 @@ router.get('/:id', async (req, res) => {
    }
   });
 
-  if(post.length>0){
+  if(post.length > 0){
     res.status(200).send(post);
-  }else {
+  } else {
     res.status(404).send("해당 id의 게시글이 없습니다.");
   }
-})
+});
+
 
 router.post('/', async (req, res) => {
     const {title, content} = req.body;
