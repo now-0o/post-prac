@@ -7,7 +7,7 @@ const postRouter = require('./routes/posts')
 const sequelize = require('./config/database');
 require('./models');
 sequelize.sync({
-    force: true
+    force: false
 })
 
 app.use('/posts', postRouter)
