@@ -6,10 +6,7 @@ router.get('/', async (req, res) => {
    const post = await Post.findAll({
     attributes: ['id', 'title', 'content']
    });
-
-   const message = {success : "success", data : post};
-
-  res.status(200).send(message);
+  res.status(200).send(o);
 })
 
 router.get('/:id', async (req, res) => {
@@ -23,13 +20,9 @@ router.get('/:id', async (req, res) => {
   });
 
   if(post.length>0){
-    const message = {success : "success", data : post};
-
-    res.status(200).send(message);
+    res.status(200).send(post);
   }else {
-    const message = {success : "fail", message : "해당 id의 게시글이 없습니다."};
-
-    res.status(404).send(message);
+    res.status(404).send("해당 id의 게시글이 없습니다.");
   }
 })
 
@@ -39,8 +32,7 @@ router.post('/', async (req, res) => {
       title,
       content
     })
-    const message = {success : "success", data : savedPost};
-    res.status(201).send(message);
+    res.status(201).send(savedPost);
   })
 
 router.patch('/:id', async (req, res) => {
@@ -60,15 +52,28 @@ router.patch('/:id', async (req, res) => {
     where : {
      id : params.id
     }
-   });
+  });
 
   if(updatePost.length>0){
-    const message = {success : "success", data : post};
     res.status(200).send(post);
   }else {
-    const message = {success : "fail", message : "해당 id의 게시글이 없습니다."};
     res.status(404).send("해당 id의 게시글이 없습니다.");
   }
 });
 
-  module.exports = router;
+router.delete('/:id', async (req, res)=>{
+  const params = req.params;
+  const deletePost = await Post.destroy({
+    where : {
+      id : params.id
+    }
+  });
+
+  if(deletePost === 1){
+    res.status(204).send();
+  }else {
+    res.status(404).send("해당 id의 게시글이 없습니다.");
+  }
+});
+
+module.exports = router;
