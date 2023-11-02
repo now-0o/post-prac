@@ -13,6 +13,6 @@ const Post = sequelize.define('posts', {
   content: {
     type: DataTypes.STRING
   }
-})
+});
 
 module.exports = Post;

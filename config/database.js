@@ -1,8 +1,15 @@
 const { Sequelize } = require("sequelize");
+const cls = require('cls-hooked');
+const namespace = cls.createNamespace('sequelize-namespace');
+Sequelize.useCLS(namespace);
 
 const sequelize = new Sequelize('jewoo', 'root', 'awd990704@', {
     host: 'localhost',
-    dialect: 'mysql'
+    dialect: 'mysql',
+    logQueryParameters : true,
+    define: {
+      timestamps: true
+    }
   });
 
 const checkConnection = async ()=>{
