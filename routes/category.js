@@ -8,10 +8,10 @@ router.post('/', async (req, res) => {
     const { category } = req.body;
 
     try {
-        const result = await sequelize.transaction(async (t) => {
+        const result = await sequelize.transaction(async () => {
             const savedCategory = await Category.create({
                 category
-            }, { transaction: t });
+            });
 
             return savedCategory;
         });

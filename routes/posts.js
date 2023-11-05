@@ -3,11 +3,12 @@ const router = express.Router();
 const { Op } = require('sequelize');
 const { Post, Hashtag, Category } = require('../models');
 const sequelize = require('../config/database');
+const HttpException = require('../HttpException');
 
 router.get('/search', async (req, res) => {
   const keyword = req.query.keyword;
 
-  const getPost = await Post.findAll({
+  const searchedPosts = await Post.findAll({
     attributes: ['id', 'title', 'content'],
     where: {
       [Op.or]: [
@@ -25,18 +26,20 @@ router.get('/search', async (req, res) => {
     },
   });
 
-  if (getPost.length > 0) {
-    res.status(200).send(getPost);
-  } else {
-    res.status(404).send("해당 키워드의 검색 결과가 없습니다.");
+  if (searchedPosts.length === 0) {
+    throw new HttpException(404, '해당 키워드의 검색결과가 없습니다.');
   }
+  res.status(200).send(searchedPosts);
 });
 
 router.get('/', async (req, res) => {
-   const post = await Post.findAll({
+  const posts = await Post.findAll({
     attributes: ['id', 'title', 'content', 'createdAt']
-   });
-  res.status(200).send(post);
+  });
+  if(posts.length === 0){
+    throw new HttpException(404, '등록된 게시글이 없습니다.')
+  }
+  res.status(200).send(posts);
 })
 
 router.get('/:id', async (req, res) => {
@@ -58,58 +61,63 @@ router.get('/:id', async (req, res) => {
     }
   });
 
-  if(post != null){
-    res.status(200).send(post);
-  } else {
-    res.status(404).send("해당 id의 게시글이 없습니다.");
-  }
+  if(post === null){
+    throw new HttpException(404, '해당 id의 게시글이 없습니다.');
+  } 
+  res.status(200).send(post);
 });
 
 router.get('/category/:id', async (req, res) => {
-  const params = req.params;
+  try {
+    const params = req.params;
 
-  const categoryData = await Category.findByPk(params.id);
+    const categoryData = await Category.findByPk(params.id);
 
-  if(categoryData){
-    const post = await Post.findAll({
+    if (!categoryData) {
+      throw new HttpException(404, '등록되지 않은 카테고리입니다.');
+    }
+
+    const posts = await Post.findAll({
       attributes: ['id', 'title', 'content', 'createdAt'],
+      where: {
+        categoryId: params.id,
+      },
       include: {
         model: Category,
         attributes: ['category'],
-        where : {
-          id : params.id
-        }
-      }
+      },
     });
-    res.status(200).send(post);
-  }else {
-    res.status(404).send("등록되지 않은 카테고리입니다.");
+
+    res.status(200).send(posts);
+  } catch (error) {
+    res.status(error.status || 500).send(error.message || '서버 오류');
   }
 });
+
 
 router.post('/', async (req, res) => {
   const { title, content, category, hashtags } = req.body;
 
   try {
-    const result = await sequelize.transaction(async (t) => {
+    const result = await sequelize.transaction(async () => {
       const savedPost = await Post.create({
         title,
         content,
         categoryId: category
-      }, { transaction: t });
+      });
 
-      if (hashtag && hashtag.length > 0) {
+      if (hashtags && hashtags.length > 0) {
         for (const hashtag of hashtags) {
-          const hashtagData = await Hashtag.findOne({
-            where : {
+          const [hashtagData, created] = await Hashtag.findOrCreate({
+            where: {
               hashtag
             }
           });
 
-          if (hashtagData) {
-            await savedPost.addHashtags(hashtagData, { transaction: t });
-          } else {
-            
+          await savedPost.addHashtags([hashtagData]); // addHashtags 메서드를 사용하여 연결
+
+          if (created) {
+            console.log(`새로운 해시태그 생성: ${hashtag}`);
           }
         }
       }
@@ -129,7 +137,7 @@ router.put('/:id', async (req, res) => {
   const params = req.params;
   const { title, content} = req.body;
   try {
-    const result = await sequelize.transaction(async (t) => {
+    const result = await sequelize.transaction(async () => {
       const updatePost = await Post.update({
         title,
         content
@@ -137,7 +145,7 @@ router.put('/:id', async (req, res) => {
         where : {
           id : params.id
         }
-      }, { transaction: t });
+      });
 
       const post = await Post.findOne({
         attributes: ['id', 'title', 'content'],
@@ -153,7 +161,7 @@ router.put('/:id', async (req, res) => {
           attributes: ['hashtag'], 
           through: { attributes: [] }
         }
-      }, { transaction: t });
+      });
 
       return post
     })
