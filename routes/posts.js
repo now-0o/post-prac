@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { Post, Hashtag, Category } = require('../models');
+const { Post, Hashtag, Category, Comment } = require('../models');
 const sequelize = require('../config/database');
 const HttpException = require('../HttpException');
+const asyncHandler = require('../utils/asyncHandler');
 
 router.get('/search', async (req, res) => {
   const keyword = req.query.keyword;
@@ -42,7 +43,7 @@ router.get('/', async (req, res) => {
   res.status(200).send(posts);
 })
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const params = req.params;
 
   const post = await Post.findOne({
@@ -65,10 +66,9 @@ router.get('/:id', async (req, res) => {
     throw new HttpException(404, '해당 id의 게시글이 없습니다.');
   } 
   res.status(200).send(post);
-});
+}));
 
-router.get('/category/:id', async (req, res) => {
-  try {
+router.get('/category/:id', asyncHandler(async (req, res) => {
     const params = req.params;
 
     const categoryData = await Category.findByPk(params.id);
@@ -88,108 +88,137 @@ router.get('/category/:id', async (req, res) => {
       },
     });
 
+    if(posts.length === 0){
+      throw new HttpException(404, '해당 카테고리로 등록된 게시글이 없습니다.');
+    }
     res.status(200).send(posts);
-  } catch (error) {
-    res.status(error.status || 500).send(error.message || '서버 오류');
+}));
+
+
+router.get('/hashtag/:id', asyncHandler(async (req, res) => {
+  const params = req.params;
+
+  const hashtagData = await Hashtag.findByPk(params.id);
+
+  if (!hashtagData) {
+    throw new HttpException(404, '등록되지 않은 해시태그입니다.');
   }
-});
 
+  const posts = await Post.findAll({
+    attributes: ['id', 'title', 'content'],
+    include: [
+      {
+        model: Hashtag,
+        where: {
+          id: params.id,
+        },
+        attributes: [],
+        through: { attributes: [] },
+      },
+    ],
+  });
 
-router.post('/', async (req, res) => {
+  if (posts.length === 0) {
+    throw new HttpException(404, '해당 해시태그로 등록된 게시물이 없습니다.');
+  }
+
+  res.status(200).send(posts);
+}));
+
+router.post('/', asyncHandler(async (req, res) => {
   const { title, content, category, hashtags } = req.body;
 
-  try {
-    const result = await sequelize.transaction(async () => {
-      const savedPost = await Post.create({
-        title,
-        content,
-        categoryId: category
-      });
-
-      if (hashtags && hashtags.length > 0) {
-        for (const hashtag of hashtags) {
-          const [hashtagData, created] = await Hashtag.findOrCreate({
-            where: {
-              hashtag
-            }
-          });
-
-          await savedPost.addHashtags([hashtagData]); // addHashtags 메서드를 사용하여 연결
-
-          if (created) {
-            console.log(`새로운 해시태그 생성: ${hashtag}`);
-          }
-        }
-      }
-
-      return savedPost;
+  const result = await sequelize.transaction(async () => {
+    const savedPost = await Post.create({
+      title,
+      content,
+      categoryId: category
     });
 
-    res.status(201).json(result);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("게시물을 저장하는 중에 오류가 발생했습니다.");
+    if (hashtags && hashtags.length > 0) {
+      for (const hashtag of hashtags) {
+        const [hashtagData, created] = await Hashtag.findOrCreate({
+          where: {
+            hashtag
+          }
+        });
+
+        await savedPost.addHashtags([hashtagData]); // addHashtags 메서드를 사용하여 연결
+
+        if (created) {
+          console.log(`새로운 해시태그 생성: ${hashtag}`);
+        }
+      }
+    }
+
+    return savedPost;
+  });
+
+  if(result.length === 0){
+    throw new HttpException(500, '게시글을 저장하는 중에 오류가 발생했습니다.');
   }
-});
+  res.status(201).json(result);
+}));
 
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const params = req.params;
   const { title, content} = req.body;
-  try {
-    const result = await sequelize.transaction(async () => {
-      const updatePost = await Post.update({
-        title,
-        content
-      }, {
-        where : {
-          id : params.id
-        }
-      });
+  const result = await sequelize.transaction(async () => {
+    const updatePost = await Post.update({
+      title,
+      content
+    }, {
+      where : {
+        id : params.id
+      }
+    });
 
-      const post = await Post.findOne({
-        attributes: ['id', 'title', 'content'],
-        where: {
-          id: params.id
-        },
-        include: {
-          model: Category,
-          attributes: ['category']
-        },
-        include: {
-          model: Hashtag,
-          attributes: ['hashtag'], 
-          through: { attributes: [] }
-        }
-      });
+    const post = await Post.findOne({
+      attributes: ['id', 'title', 'content'],
+      where: {
+        id: params.id
+      },
+      include: {
+        model: Category,
+        attributes: ['category']
+      },
+      include: {
+        model: Hashtag,
+        attributes: ['hashtag'], 
+        through: { attributes: [] }
+      }
+    });
 
-      return post
-    })
+    return post
+  })
 
-    if(result!=null){
-      res.status(200).send(result);
-    }else {
-      res.status(404).send("해당 id의 게시글이 없습니다.");
-    }
-  }catch (error) {
-    console.error(error);
-    res.status(500).send("게시물을 수정하는 중에 오류가 발생했습니다.");
+  if(result===null){
+    throw new HttpException(404,'해당 id의 게시글이 없습니다.');
   }
-});
+  res.status(200).send(result);
+}));
 
 router.delete('/:id', async (req, res)=>{
   const params = req.params;
-  const deletePost = await Post.destroy({
-    where : {
-      id : params.id
-    }
-  });
+  const result = await sequelize.transaction(async () => {
+    const deleteComment = await Comment.destroy({
+      where : {
+        postId : params.id
+      }
+    })
 
-  if(deletePost === 1) {
-    res.status(204).send();
-  } else {
-    res.status(404).send("해당 id의 게시글이 없습니다.");
-  }
+    const deletePost = await Post.destroy({
+      where : {
+        id : params.id
+      }
+    });
+    return deletePost;
+  })
+  if(result === 0) {
+    throw new HttpException(404, '해당 id의 게시글이 없습니다.');
+  } 
+  res.status(204).send();
 });
 
 module.exports = router;

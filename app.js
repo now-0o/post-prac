@@ -14,9 +14,9 @@ sequelize.sync({
     alter: true
 })
 
-app.use('/posts', asyncHandler(postRouter));
-app.use('/categorys', asyncHandler(categoryRouter));
-app.use('/comments', asyncHandler(commentRouter));
+app.use('/posts', postRouter);
+app.use('/categorys', categoryRouter);
+app.use('/comments', commentRouter);
 
 app.listen(port, async () => {
   console.log(`서버가 실행됩니다. http://localhost:${port}`);
