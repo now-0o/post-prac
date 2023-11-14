@@ -6,8 +6,12 @@ const sequelize = require('../config/database');
 const HttpException = require('../HttpException');
 const asyncHandler = require('../utils/asyncHandler');
 
-router.get('/search', async (req, res) => {
+router.get('/search', asyncHandler(async (req, res) => {
   const keyword = req.query.keyword;
+  
+  if(!keyword){
+    throw new HttpException(400, '검색할 키워드가 없습니다.')
+  }
 
   const searchedPosts = await Post.findAll({
     attributes: ['id', 'title', 'content'],
@@ -27,21 +31,65 @@ router.get('/search', async (req, res) => {
     },
   });
 
-  if (searchedPosts.length === 0) {
-    throw new HttpException(404, '해당 키워드의 검색결과가 없습니다.');
-  }
   res.status(200).send(searchedPosts);
+}));
+
+router.get('/category/:id', asyncHandler(async (req, res) => {
+  const params = req.params;
+
+  const categoryData = await Category.findByPk(params.id);
+
+  if (!categoryData) {
+    throw new HttpException(404, '등록되지 않은 카테고리입니다.');
+  }
+
+  const posts = await Post.findAll({
+    attributes: ['id', 'title', 'content', 'createdAt'],
+    where: {
+      categoryId: params.id,
+    },
+    include: {
+      model: Category,
+      attributes: ['category'],
+    },
+  });
+
+  res.status(200).send(posts);
+}));
+
+
+router.get('/hashtag/:id', asyncHandler(async (req, res) => {
+const params = req.params;
+
+const hashtagData = await Hashtag.findByPk(params.id);
+
+if (!hashtagData) {
+  throw new HttpException(404, '등록되지 않은 해시태그입니다.');
+}
+
+const posts = await Post.findAll({
+  attributes: ['id', 'title', 'content'],
+  include: [
+    {
+      model: Hashtag,
+      where: {
+        id: params.id,
+      },
+      attributes: [],
+      through: { attributes: [] },
+    },
+  ],
 });
 
-router.get('/', async (req, res) => {
+res.status(200).send(posts);
+}));
+
+router.get('/', asyncHandler(async (req, res) => {
   const posts = await Post.findAll({
     attributes: ['id', 'title', 'content', 'createdAt']
   });
-  if(posts.length === 0){
-    throw new HttpException(404, '등록된 게시글이 없습니다.')
-  }
   res.status(200).send(posts);
-})
+}))
 
 router.get('/:id', asyncHandler(async (req, res) => {
   const params = req.params;
@@ -62,67 +110,11 @@ router.get('/:id', asyncHandler(async (req, res) => {
     }
   });
 
-  if(post === null){
-    throw new HttpException(404, '해당 id의 게시글이 없습니다.');
-  } 
+  if(!post){
+    throw new HttpException(404, '존재하지 않는 게시글입니다.');
+  }
+
   res.status(200).send(post);
-}));
-
-router.get('/category/:id', asyncHandler(async (req, res) => {
-    const params = req.params;
-
-    const categoryData = await Category.findByPk(params.id);
-
-    if (!categoryData) {
-      throw new HttpException(404, '등록되지 않은 카테고리입니다.');
-    }
-
-    const posts = await Post.findAll({
-      attributes: ['id', 'title', 'content', 'createdAt'],
-      where: {
-        categoryId: params.id,
-      },
-      include: {
-        model: Category,
-        attributes: ['category'],
-      },
-    });
-
-    if(posts.length === 0){
-      throw new HttpException(404, '해당 카테고리로 등록된 게시글이 없습니다.');
-    }
-    res.status(200).send(posts);
-}));
-
-
-router.get('/hashtag/:id', asyncHandler(async (req, res) => {
-  const params = req.params;
-
-  const hashtagData = await Hashtag.findByPk(params.id);
-
-  if (!hashtagData) {
-    throw new HttpException(404, '등록되지 않은 해시태그입니다.');
-  }
-
-  const posts = await Post.findAll({
-    attributes: ['id', 'title', 'content'],
-    include: [
-      {
-        model: Hashtag,
-        where: {
-          id: params.id,
-        },
-        attributes: [],
-        through: { attributes: [] },
-      },
-    ],
-  });
-
-  if (posts.length === 0) {
-    throw new HttpException(404, '해당 해시태그로 등록된 게시물이 없습니다.');
-  }
-
-  res.status(200).send(posts);
 }));
 
 router.post('/', asyncHandler(async (req, res) => {

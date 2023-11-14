@@ -1,14 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { Comment } = require('../models');
+const { Post, Comment } = require('../models');
 const sequelize = require('../config/database');
 const asyncHandler = require('../utils/asyncHandler');
 const HttpException = require('../HttpException');
 
 router.post('/', asyncHandler(async (req, res) => {
     const { comment, postId } = req.body;
+    if(!comment){
+        throw new HttpException(400, '등록할 댓글의 내용이 없습니다.');
+    }
     const result = await sequelize.transaction(async () => {
+        const foundPost = await Post.findByPk(postId);
+
+        if(!foundPost){
+            throw new HttpException(400, '존재하지않는 게시글의 ID입니다.');
+        }
+
         const savedComment = await Comment.create({
             comment,
             postId
@@ -17,9 +26,6 @@ router.post('/', asyncHandler(async (req, res) => {
         return savedComment;
     });
 
-    if(result.length === 0){
-        throw new HttpException(500, '댓글을 저장하는 중에 오류가 발생했습니다.');
-    }
     res.status(201).json(result);
 }));
 
@@ -27,17 +33,21 @@ router.delete('/:id', asyncHandler(async (req, res)=>{
     const params = req.params;
 
     const result = await sequelize.transaction(async () => {
-        const deletePost = await Comment.destroy({
+        const foundComment = await Comment.findByPk(params.id);
+
+        if(!foundComment){
+            throw new HttpException(400, '존재하지 않는 댓글입니다.');
+        }
+
+        const deleteComment = await Comment.destroy({
             where : {
                 id : params.id
             }
         });
 
-        return deletePost;
+        return deleteComment;
     });
-    if(result === 0) {
-        throw new HttpException(404, '해당 id의 댓글이 없습니다.');
-    } 
+
     res.status(204).send();
   }));
 
