@@ -15,8 +15,12 @@ sequelize.sync({
 })
 
 app.use('/posts', postRouter);
-app.use('/categorys', categoryRouter);
+app.use('/categories', categoryRouter);
 app.use('/comments', commentRouter);
+
+app.use((req, res, next) => {
+  res.status(404).send('등록되지 않은 API입니다.');
+});
 
 app.listen(port, async () => {
   console.log(`서버가 실행됩니다. http://localhost:${port}`);
