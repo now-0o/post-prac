@@ -120,7 +120,23 @@ router.get('/:id', asyncHandler(async (req, res) => {
 router.post('/', asyncHandler(async (req, res) => {
   const { title, content, category, hashtags } = req.body;
 
+  if(!title){
+    throw new HttpException(400, '등록할 게시글의 제목은 빈 값일 수 없습니다.');
+  }
+  if(!content){
+    throw new HttpException(400, '등록할 게시글의 내용은 빈 값일 수 없습니다.');
+  }
+  if(!category){
+    throw new HttpException(400, '등록할 게시글의 카테고리는 빈 값일 수 없습니다.');
+  }
+
   const result = await sequelize.transaction(async () => {
+    const foundCategory = await Category.findByPk(category);
+    
+    if(!foundCategory){
+      throw new HttpException(400, '존재하지 않는 카테고리입니다.');
+    }
+
     const savedPost = await Post.create({
       title,
       content,
@@ -135,7 +151,7 @@ router.post('/', asyncHandler(async (req, res) => {
           }
         });
 
-        await savedPost.addHashtags([hashtagData]); // addHashtags 메서드를 사용하여 연결
+        await savedPost.addHashtags([hashtagData]);
 
         if (created) {
           console.log(`새로운 해시태그 생성: ${hashtag}`);
@@ -146,17 +162,28 @@ router.post('/', asyncHandler(async (req, res) => {
     return savedPost;
   });
 
-  if(result.length === 0){
-    throw new HttpException(500, '게시글을 저장하는 중에 오류가 발생했습니다.');
-  }
   res.status(201).json(result);
 }));
 
 
 router.put('/:id', asyncHandler(async (req, res) => {
   const params = req.params;
-  const { title, content} = req.body;
+  const {title, content} = req.body;
+
+  if(!title){
+    throw new HttpException(400, '수정할 게시글 제목은 빈 값일 수 없습니다.');
+  }
+  if(!content){
+    throw new HttpException(400, '수정할 게시글 내용은 빈 값일 수 없습니다.');
+  }
+
   const result = await sequelize.transaction(async () => {
+    const foundPost = await Post.findByPk(params.id);
+
+    if(!foundPost){
+      throw new HttpException(400, '존재하지 않는 게시글입니다.');
+    }
+
     const updatePost = await Post.update({
       title,
       content
@@ -182,18 +209,21 @@ router.put('/:id', asyncHandler(async (req, res) => {
       }
     });
 
-    return post
+    return post;
   })
 
-  if(result===null){
-    throw new HttpException(404,'해당 id의 게시글이 없습니다.');
-  }
   res.status(200).send(result);
 }));
 
 router.delete('/:id', async (req, res)=>{
   const params = req.params;
   const result = await sequelize.transaction(async () => {
+    const foundPost = await Post.findByPk(params.id);
+
+    if(!foundPost){
+      throw new HttpException(400, '존재하지 않는 게시글입니다.');
+    }
+
     const deleteComment = await Comment.destroy({
       where : {
         postId : params.id
@@ -207,9 +237,7 @@ router.delete('/:id', async (req, res)=>{
     });
     return deletePost;
   })
-  if(result === 0) {
-    throw new HttpException(404, '해당 id의 게시글이 없습니다.');
-  } 
+
   res.status(204).send();
 });
 
