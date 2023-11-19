@@ -10,9 +10,10 @@ router.get('/', async (req, res) => {
     const categories = await Category.findAll({
       attributes: ['id', 'category']
     });
-
+    console.log("123123");
+    console.log(categories.length === 0);
     if(categories.length === 0){
-      console.log(categorys.length);
+      
       throw new HttpException(404, '등록된 카테고리가 없습니다.')
     }
     res.status(200).send(categories);

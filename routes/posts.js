@@ -7,7 +7,8 @@ const HttpException = require('../HttpException');
 const asyncHandler = require('../utils/asyncHandler');
 
 router.get('/search', asyncHandler(async (req, res) => {
-  const keyword = req.query.keyword;
+  // 비구조화할당 
+  const {keyword} = req.query;
   
   if(!keyword){
     throw new HttpException(400, '검색할 키워드가 없습니다.')
@@ -35,18 +36,21 @@ router.get('/search', asyncHandler(async (req, res) => {
 }));
 
 router.get('/category/:id', asyncHandler(async (req, res) => {
-  const params = req.params;
+  // 비구조화할당
+  // params.id에 대한 검증
+  const {id} = req.params;
 
-  const categoryData = await Category.findByPk(params.id);
+  // 변수명에 Data라는 키워드를 잘 안 씀
+  const category= await Category.findByPk(id);
 
-  if (!categoryData) {
+  if (!category) {
     throw new HttpException(404, '등록되지 않은 카테고리입니다.');
   }
 
   const posts = await Post.findAll({
     attributes: ['id', 'title', 'content', 'createdAt'],
     where: {
-      categoryId: params.id,
+      categoryId: id,
     },
     include: {
       model: Category,
@@ -59,11 +63,14 @@ router.get('/category/:id', asyncHandler(async (req, res) => {
 
 
 router.get('/hashtag/:id', asyncHandler(async (req, res) => {
-const params = req.params;
+  // 비구조화할당
+  // params.id에 대한 검증
+const {id} = req.params;
 
-const hashtagData = await Hashtag.findByPk(params.id);
+// Data 변수
+const hashtag = await Hashtag.findByPk(id);
 
-if (!hashtagData) {
+if (!hashtag) {
   throw new HttpException(404, '등록되지 않은 해시태그입니다.');
 }
 
@@ -73,10 +80,9 @@ const posts = await Post.findAll({
     {
       model: Hashtag,
       where: {
-        id: params.id,
+        id,
       },
-      attributes: [],
-      through: { attributes: [] },
+      attributes: [], // 이 코드를 남겨둔 이유 ?
     },
   ],
 });
@@ -92,12 +98,14 @@ router.get('/', asyncHandler(async (req, res) => {
 }))
 
 router.get('/:id', asyncHandler(async (req, res) => {
-  const params = req.params;
+  // 비구조화할당
+  // 검증
+  const {id} = req.params;
 
   const post = await Post.findOne({
     attributes: ['id', 'title', 'content'],
     where: {
-      id: params.id
+      id
     },
     include: {
       model: Category,
@@ -105,8 +113,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     },
     include: {
       model: Hashtag,
-      attributes: ['hashtag'], 
-      through: { attributes: [] }
+      attributes: ['hashtag']
     }
   });
 
@@ -123,11 +130,20 @@ router.post('/', asyncHandler(async (req, res) => {
   if(!title){
     throw new HttpException(400, '등록할 게시글의 제목은 빈 값일 수 없습니다.');
   }
+  if(typeof title !== 'string') {
+    throw new HttpException(400, '등록할 게시글의 제목은 문자여야만 합니다.');
+  }
   if(!content){
     throw new HttpException(400, '등록할 게시글의 내용은 빈 값일 수 없습니다.');
   }
+  if(typeof content !== 'string') {
+    throw new HttpException(400, '등록할 게시글의 내용은 문자여야만 합니다.');
+  }
   if(!category){
     throw new HttpException(400, '등록할 게시글의 카테고리는 빈 값일 수 없습니다.');
+  }
+  if(typeof category !== 'string') {
+    throw new HttpException(400, '등록할 게시글의 카테고리는 문자여야만 합니다.');
   }
 
   const result = await sequelize.transaction(async () => {
@@ -167,7 +183,7 @@ router.post('/', asyncHandler(async (req, res) => {
 
 
 router.put('/:id', asyncHandler(async (req, res) => {
-  const params = req.params;
+  const {id} = req.params;
   const {title, content} = req.body;
 
   if(!title){
@@ -178,7 +194,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   }
 
   const result = await sequelize.transaction(async () => {
-    const foundPost = await Post.findByPk(params.id);
+    const foundPost = await Post.findByPk(id);
 
     if(!foundPost){
       throw new HttpException(400, '존재하지 않는 게시글입니다.');
@@ -189,14 +205,14 @@ router.put('/:id', asyncHandler(async (req, res) => {
       content
     }, {
       where : {
-        id : params.id
+        id
       }
     });
 
     const post = await Post.findOne({
       attributes: ['id', 'title', 'content'],
       where: {
-        id: params.id
+        id
       },
       include: {
         model: Category,
@@ -204,8 +220,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
       },
       include: {
         model: Hashtag,
-        attributes: ['hashtag'], 
-        through: { attributes: [] }
+        attributes: ['hashtag']
       }
     });
 
@@ -216,9 +231,9 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.delete('/:id', async (req, res)=>{
-  const params = req.params;
+  const {id} = req.params;
   const result = await sequelize.transaction(async () => {
-    const foundPost = await Post.findByPk(params.id);
+    const foundPost = await Post.findByPk(id);
 
     if(!foundPost){
       throw new HttpException(400, '존재하지 않는 게시글입니다.');
@@ -226,13 +241,13 @@ router.delete('/:id', async (req, res)=>{
 
     const deleteComment = await Comment.destroy({
       where : {
-        postId : params.id
+        postId : id
       }
     })
 
     const deletePost = await Post.destroy({
       where : {
-        id : params.id
+        id
       }
     });
     return deletePost;
