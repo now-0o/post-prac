@@ -2,6 +2,7 @@ const Post = require('./Post');
 const Category = require('./Category');
 const Hashtag = require('./Hashtag');
 const Comment = require('./Comment');
+const Payment = require('./Payment');
 
 Category.hasMany(Post);
 Post.belongsTo(Category);
@@ -17,5 +18,6 @@ module.exports = {
     Post,
     Category,
     Hashtag,
-    Comment
+    Comment,
+    Payment
 }
