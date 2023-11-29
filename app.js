@@ -8,6 +8,8 @@ const postRouter = require('./routes/posts');
 const categoryRouter = require('./routes/category');
 const commentRouter = require('./routes/comment');
 const paymentRouter = require('./routes/payment');
+const authRouter = require('./routes/auth');
+
 const HttpException = require('./HttpException');
 const asyncHandler = require('./utils/asyncHandler');
 
@@ -21,6 +23,7 @@ app.use('/posts', postRouter);
 app.use('/categories', categoryRouter);
 app.use('/comments', commentRouter);
 app.use('/payments', paymentRouter);
+app.use('/auth', authRouter);
 
 app.use((req, res, next) => {
   res.status(404).send('등록되지 않은 API입니다.');
