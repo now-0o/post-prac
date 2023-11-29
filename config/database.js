@@ -3,7 +3,7 @@ const cls = require('cls-hooked');
 const namespace = cls.createNamespace('sequelize-namespace');
 Sequelize.useCLS(namespace);
 
-const sequelize = new Sequelize('jewoo', 'root', 'awd990704@', {
+const sequelize = new Sequelize('jewoo', 'root', process.env.databasePassword, {
     host: 'localhost',
     dialect: 'mysql',
     logQueryParameters : true,
